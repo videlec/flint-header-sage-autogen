@@ -7,7 +7,7 @@ flint_wrap.h files that properly include all flint headers.
 import os
 import sys
 
-if not os.isdir('flint2'):
+if not os.path.isdir('flint2'):
     print('You must first clone the flint git repo')
     sys.exit(1)
 

@@ -4,7 +4,7 @@ Autogeneration of flint header files for SageMath
 Instructions
 ------------
 
-1. Obtain a clone of the flint repo, eg `git clone https://github.com/flintlib/flint2/tree/trunk`
+1. Obtain a clone of the flint repo, eg `git clone https://github.com/flintlib/flint2`
 
 2. Checkout to the appropriate commit, eg `git checkout v2.9.0`
 
