@@ -4,22 +4,40 @@ Autogeneration of the flint Cython header files for sage
 It generates a pxd header for each flint header fline as well as the
 flint_wrap.h files that properly include all flint headers.
 """
+
+#*****************************************************************************
+#       Copyright (C) 2023 Vincent Delecroix <20100.delecroix@gmail.com>
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 2 of the License, or
+# (at your option) any later version.
+#                  http://www.gnu.org/licenses/
+#*****************************************************************************
+
 import sys, os
 
 if not os.path.isdir('flint2'):
     print('You must first clone the flint git repo')
     sys.exit(1)
 
+# where the output files will be created
+OUTPUT_DIR = 'pxd_headers'
+if not os.path.isdir(OUTPUT_DIR):
+    os.mkdir(OUTPUT_DIR)
+
+# location of flint headers
 if os.path.isdir('flint2/src'):
     FLINT_INCLUDE_DIR = 'flint2/src'
 else:
     FLINT_INCLUDE_DIR = 'flint2'
+if not os.path.isdir(FLINT_INCLUDE_DIR):
+    print('Flint include dir not found ({})'.format(FLINT_INCLUDE_DIR))
 
+# location of flint documentation source files
 FLINT_DOC_DIR = 'flint2/doc/source'
-
-OUTPUT_DIR = 'pxd_headers'
-if not os.path.isdir(OUTPUT_DIR):
-    os.mkdir(OUTPUT_DIR)
+if not os.path.isdir(FLINT_DOC_DIR):
+    print('Flint doc dir not found ({})'.format(FLINT_DOC_DIR))
 
 
 class Extractor:
@@ -132,7 +150,6 @@ for filename in os.listdir(FLINT_DOC_DIR):
         continue
     prefix = filename[:-4]
 
-    print('read {}'.format(filename))
     absolute_filename = os.path.join(FLINT_DOC_DIR, filename)
     content = extract_functions(absolute_filename)
     if not content:
@@ -158,8 +175,8 @@ for filename in os.listdir(FLINT_DOC_DIR):
 
     print('from libc.stdio cimport FILE', file=output)
     print('from sage.libs.gmp.types cimport *', file=output)
-    print('from sage.libs.flint.types cimport *', file=output)
     print('from sage.libs.mpfr.types cimport *', file=output)
+    print('from sage.libs.flint.types cimport *', file=output)
     print(file=output)
 
     print('cdef extern from "flint_wrap.h":', file=output)
