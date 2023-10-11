@@ -4,7 +4,7 @@ Autogeneration of the flint Cython header files for sage
 It generates a pxd header for each flint header fline as well as the
 flint_wrap.h files that properly include all flint headers.
 """
-import shutil, sys, os
+import sys, os
 
 if not os.path.isdir('flint2'):
     print('You must first clone the flint git repo')
@@ -181,4 +181,7 @@ with open('flint_wrap.h.template') as f:
 with open(os.path.join(OUTPUT_DIR, 'flint_wrap.h'), 'w') as output:
     output.write(text.format(HEADER_LIST='\n'.join('#include <flint/{}>'.format(header) for header in header_list)))
 
-shutil.copy('types.pxd.template', OUTPUT_DIR)
+with open('types.pxd.template') as f:
+    text = f.read()
+with open(os.path.join(OUTPUT_DIR, 'types.pxd'), 'w') as output:
+    output.write(text.format(HEADER_LIST=' '.join('flint/{}'.format(header) for header in header_list)))
