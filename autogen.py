@@ -55,6 +55,7 @@ class Extractor:
         self.doc = []
         self.content = {}
         self.functions = []
+        self.func_signatures = []
         with open(filename) as f:
             text = f.read()
         self.lines = text.splitlines()
@@ -65,14 +66,22 @@ class Extractor:
             pass
         if self.IN_FUNCTION:
             self.add_function()
+        if self.functions:
+            self.update_section()
+
+    def update_section(self):
+        if self.section not in self.content:
+            self.content[self.section] = []
+        self.content[self.section] += tuple(self.functions)
+        self.functions.clear()
 
     def add_function(self):
         if not self.IN_FUNCTION:
             raise RuntimeError
         while self.doc and not self.doc[-1]:
             self.doc.pop()
-        self.functions.append((self.func_signature, tuple(self.doc)))
-        self.func_signature = None
+        self.functions.append((tuple(self.func_signatures), tuple(self.doc)))
+        self.func_signatures.clear()
         self.doc.clear()
         self.IN_FUNCTION = False
 
@@ -86,7 +95,7 @@ class Extractor:
         if line.startswith('.. function::'):
             if self.IN_FUNCTION:
                 self.add_function()
-            self.func_signature = line[14:]
+            self.func_signatures.append(line[14:].strip())
             self.IN_FUNCTION = True
             self.IN_TYPE = self.IN_MACRO = False
             self.i += 1
@@ -106,20 +115,24 @@ class Extractor:
             self.IN_MACRO = True
             self.i += 1
         elif line.startswith('              ') and self.IN_FUNCTION:
-            # continuation of function signature
-            self.func_signature += line[14:]
+            # function with similar declaration
+            line = line[14:].strip()
+            if line:
+                self.func_signatures.append(line)
             self.i += 1
         elif line.startswith('    ') and self.IN_FUNCTION:
             # function doc
-            self.doc.append(line[4:])
+            line = line.strip()
+            if line:
+                self.doc.append(line)
             self.i += 1
         elif self.i + 1 < len(self.lines) and self.lines[self.i + 1].startswith('----'):
             # new section
             if self.IN_FUNCTION:
                 self.add_function()
+            self.IN_MACRO = self.IN_TYPE = False
             if self.functions:
-                self.content[self.section] = tuple(self.functions)
-                self.functions.clear()
+                self.update_section()
             section = line
             self.i += 2
         elif not line:
@@ -184,12 +197,12 @@ for filename in os.listdir(FLINT_DOC_DIR):
     for section in content:
         if section is not None:
             print('    ## {}'.format(section), file=output)
-        print(file=output)
-        for func_signature, doc in content[section]:
-            print('    {}'.format(func_signature), file=output)
+        for func_signatures, doc in content[section]:
+            print(file=output)
+            for line in func_signatures:
+                print('    {}'.format(line), file=output)
             for line in doc:
                 print('    # {}'.format(line), file=output)
-            print(file=output)
 
     output.close()
 
