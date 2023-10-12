@@ -44,13 +44,17 @@ class Extractor:
     r"""
     Tool to extract function declarations from a .rst file
     """
+    NONE = 0
+    FUNCTION_DECLARATION = 1
+    FUNCTION_DOC = 2
+    TYPE = 3
+    MACRO = 4
+
     def __init__(self, filename):
         self.filename = filename
         if not filename.endswith('.rst'):
             raise ValueError
-        self.IN_FUNCTION = False
-        self.IN_TYPE = False
-        self.IN_MACRO = False
+        self.state = self.NONE
         self.section = None
         self.doc = []
         self.content = {}
@@ -64,7 +68,7 @@ class Extractor:
     def run(self):
         while self.process_line():
             pass
-        if self.IN_FUNCTION:
+        if self.state == self.FUNCTION_DECLARATION or self.state == self.FUNCTION_DOC:
             self.add_function()
         if self.functions:
             self.update_section()
@@ -76,51 +80,61 @@ class Extractor:
         self.functions.clear()
 
     def add_function(self):
-        if not self.IN_FUNCTION:
-            raise RuntimeError
+        if self.state != self.FUNCTION_DECLARATION and self.state != self.FUNCTION_DOC:
+            return
         while self.doc and not self.doc[-1]:
             self.doc.pop()
+        for i, func_signature in enumerate(self.func_signatures):
+            self.func_signatures[i] = func_signature.replace('slong', 'long').replace('ulong', 'unsigned long').replace('(void)', '()').replace(' enum ', ' ')
+            if any(bad in self.func_signatures[i] for bad in [' in,', ' in)', '*in,', '*in)']):
+                old = self.func_signatures[i]
+                new = old.replace(' in,', ' input,').replace(' in)', ' input)').replace('*in,', '*input,').replace('*in)', '*input)')
+                print('Warning: invalid python variable name in "{}" replaced with "{}"'.format(old, new))
+                self.func_signatures[i] = new
         self.functions.append((tuple(self.func_signatures), tuple(self.doc)))
         self.func_signatures.clear()
         self.doc.clear()
-        self.IN_FUNCTION = False
+        self.state = self.NONE
 
     def process_line(self):
-        if (self.IN_FUNCTION + self.IN_TYPE + self.IN_MACRO) > 1:
-            raise RuntimeError('IN_FUNCTION={} IN_TYPE={} IN_MACRO={}'.format(self.IN_FUNCTION, self.IN_TYPE, self.IN_MACRO))
         if self.i >= len(self.lines):
             return 0
 
         line = self.lines[self.i]
         if line.startswith('.. function::'):
-            if self.IN_FUNCTION:
-                self.add_function()
-            self.func_signatures.append(line[14:].strip())
-            self.IN_FUNCTION = True
-            self.IN_TYPE = self.IN_MACRO = False
+            self.add_function()
+            if not line[13] == ' ':
+                print('Warning: no space {}'.format(line))
+            self.func_signatures.append(line[13:].strip())
+            self.state = self.FUNCTION_DECLARATION
             self.i += 1
         elif line.startswith('.. type::'):
             # type
             # NOTE: we do nothing as the documentation duplicates type declaration
             # and lacks the actual list of attributes
-            if self.IN_FUNCTION:
-                self.add_function()
-            self.IN_MACRO = False
-            self.IN_TYPE = True
+            self.add_function()
+            self.state = self.TYPE
             self.i += 1
         elif line.startswith('.. macro::'):
-            if self.IN_FUNCTION:
-                self.add_function()
-            self.IN_TYPE = False
-            self.IN_MACRO = True
+            # macro
+            # TODO: these should be treated
+            self.add_function()
+            self.state = self.MACRO
             self.i += 1
-        elif line.startswith('              ') and self.IN_FUNCTION:
-            # function with similar declaration
-            line = line[14:].strip()
-            if line:
-                self.func_signatures.append(line)
-            self.i += 1
-        elif line.startswith('    ') and self.IN_FUNCTION:
+        elif self.state == self.FUNCTION_DECLARATION:
+            if len(line) > 14 and line.startswith(' ' * 14):
+                # function with similar declaration
+                line = line[14:].strip()
+                if line:
+                    self.func_signatures.append(line)
+                self.i += 1
+            elif not line.strip():
+                # leaving function declaration
+                self.state = self.FUNCTION_DOC
+                self.i += 1
+            else:
+                raise ValueError(line)
+        elif self.state == self.FUNCTION_DOC and line.startswith('    '):
             # function doc
             line = line.strip()
             if line:
@@ -128,8 +142,7 @@ class Extractor:
             self.i += 1
         elif self.i + 1 < len(self.lines) and self.lines[self.i + 1].startswith('----'):
             # new section
-            if self.IN_FUNCTION:
-                self.add_function()
+            self.add_function()
             self.IN_MACRO = self.IN_TYPE = False
             if self.functions:
                 self.update_section()
@@ -137,7 +150,7 @@ class Extractor:
             self.i += 2
         elif not line:
             self.i += 1
-        elif self.IN_FUNCTION:
+        elif self.state == self.FUNCTION_DOC or self.state == self.FUNCTION_DECLARATION:
             self.add_function()
             self.i += 1
         else:
@@ -205,6 +218,12 @@ for filename in os.listdir(FLINT_DOC_DIR):
                 print('    # {}'.format(line), file=output)
 
     output.close()
+
+
+for extra_header in ['nmod_types.h']:
+    if extra_header in header_list:
+        print('Warning: {} already in HEADER_LIST'.format(extra_header))
+    header_list.append(extra_header)
 
 with open('flint_wrap.h.template') as f:
     text = f.read()
