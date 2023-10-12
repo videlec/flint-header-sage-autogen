@@ -41,7 +41,7 @@ if not os.path.isdir(FLINT_DOC_DIR):
 
 class Extractor:
     r"""
-    Tool to extract function declarations from a .rst file
+    Tool to extract function declarations from a flint .rst file
     """
     NONE = 0
     FUNCTION_DECLARATION = 1
@@ -53,12 +53,15 @@ class Extractor:
         self.filename = filename
         if not filename.endswith('.rst'):
             raise ValueError
-        self.state = self.NONE
-        self.section = None
-        self.doc = []
-        self.content = {}
-        self.functions = []
-        self.func_signatures = []
+
+        # Attributes that are modified throughout the document parsing
+        self.state = self.NONE    # position in the documentation
+        self.section = None       # current section
+        self.content = {}         # section -> list of pairs (function signatures, func documentation)
+        self.functions = []       # current list of pairs (function signatures, func documentation)
+        self.func_signatures = [] # current list of function signatures
+        self.doc = []             # current function documentation
+
         with open(filename) as f:
             text = f.read()
         self.lines = text.splitlines()
@@ -96,6 +99,9 @@ class Extractor:
         self.state = self.NONE
 
     def process_line(self):
+        r"""
+        Process one line of documentation.
+        """
         if self.i >= len(self.lines):
             return 0
 
