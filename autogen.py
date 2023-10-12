@@ -27,17 +27,16 @@ if not os.path.isdir(OUTPUT_DIR):
     os.mkdir(OUTPUT_DIR)
 
 # location of flint headers
-if os.path.isdir('flint2/src'):
-    FLINT_INCLUDE_DIR = 'flint2/src'
-else:
-    FLINT_INCLUDE_DIR = 'flint2'
+FLINT_INCLUDE_DIR = "/home/doctorant/sage/local/include/flint"
 if not os.path.isdir(FLINT_INCLUDE_DIR):
-    print('Flint include dir not found ({})'.format(FLINT_INCLUDE_DIR))
+    print('Flint headers not found ({})'.format(FLINT_INCLUDE_DIR))
+    sys.exit(1)
 
 # location of flint documentation source files
 FLINT_DOC_DIR = 'flint2/doc/source'
 if not os.path.isdir(FLINT_DOC_DIR):
-    print('Flint doc dir not found ({})'.format(FLINT_DOC_DIR))
+    print('Flint doc not found ({})'.format(FLINT_DOC_DIR))
+    sys.exit(1)
 
 
 class Extractor:
@@ -187,6 +186,13 @@ for filename in os.listdir(FLINT_DOC_DIR):
     absolute_header = os.path.join(FLINT_INCLUDE_DIR, header)
     if not os.path.isfile(absolute_header):
         print('Warning: skipping {} because no associated .h found'.format(filename))
+        continue
+    if prefix == "machine_vectors":
+        # TODO: fix me
+        fft_small_absolute_header = os.path.join(FLINT_INCLUDE_DIR, 'fft_small.h')
+        if not os.path.isfile(fft_small_absolute_header):
+            print('Warning: skipping machine_vectors.h because fft_small.h is not there')
+            continue
     header_list.append(header)
 
     output = open(os.path.join(OUTPUT_DIR, prefix + '.pxd'), 'w')
