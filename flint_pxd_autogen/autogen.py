@@ -65,17 +65,29 @@ class Extractor:
         self.content[self.section] += tuple(self.functions)
         self.functions.clear()
 
-    @staticmethod
-    def _clean_arg_names(func_signature):
-        replacement = [('(void)', '()'), (' enum ', ' ')]
-        for bad_type, good_type in replacement:
-            func_signature = func_signature.replace(bad_type, good_type)
+    def clean_doc(self):
+        # Remove empty lines at the end of documentation
+        while self.doc and not self.doc[-1]:
+            self.doc.pop()
 
-        bad_arg_names = [('in', 'input'), ('lambda', 'lmbda'), ('iter', 'it')]
-        replacements = [(pattern.format(bad), pattern.format(good)) for pattern in [' {},', ' {})', '*{},', '*{})'] for bad, good in bad_arg_names]
-        for bad_form, good_form in replacements:
-            func_signature = func_signature.replace(bad_form, good_form)
-        return func_signature
+        for i, line in enumerate(self.doc):
+            # To make sage linter happier
+            line = line.replace('\\choose ', 'choose ')
+            self.doc[i] = line
+
+    def clean_signatures(self):
+        if (self.state & self.FUNCTION_DECLARATION) or (self.state & self.MACRO_DECLARATION):
+            for i, func_signature in enumerate(self.signatures):
+                replacement = [('(void)', '()'), (' enum ', ' ')]
+                for bad_type, good_type in replacement:
+                    func_signature = func_signature.replace(bad_type, good_type)
+
+                bad_arg_names = [('in', 'input'), ('lambda', 'lmbda'), ('iter', 'it')]
+                replacements = [(pattern.format(bad), pattern.format(good)) for pattern in [' {},', ' {})', '*{},', '*{})'] for bad, good in bad_arg_names]
+                for bad_form, good_form in replacements:
+                    func_signature = func_signature.replace(bad_form, good_form)
+
+                self.signatures[i] = func_signature
 
     def add_declaration(self):
         if self.state & self.FUNCTION_DECLARATION:
@@ -90,26 +102,28 @@ class Extractor:
         self.state = self.NONE
 
     def add_function(self):
-        # Remove empty lines at the end of documentation
-        while self.doc and not self.doc[-1]:
-            self.doc.pop()
+        self.clean_doc()
 
-        # Do a bit of rewriting to make cython happy
-        func_signatures = []
+        # Drop va_list argument
+        signatures = []
         for func_signature in self.signatures:
             if '(' not in func_signature or ')' not in func_signature:
                 raise RuntimeError(func_signature)
             elif 'va_list ' in func_signature:
-                continue
+                print('Warning: va_list unsupported {}'.format(func_signature))
             else:
-                func_signatures.append(self._clean_arg_names(func_signature))
+                signatures.append(func_signature)
+        self.signatures = signatures
+        self.clean_signatures()
 
-        self.functions.append((tuple(func_signatures), tuple(self.doc)))
+        self.functions.append((tuple(self.signatures), tuple(self.doc)))
 
     def add_macro(self):
+        # TODO: we might want to support auto-generation of macros
         return
 
     def add_type(self):
+        # TODO: we might want to support auto-generation of types
         return
  
     def process_line(self):
