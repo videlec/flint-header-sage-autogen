@@ -75,6 +75,41 @@ class Extractor:
             line = line.replace('\\choose ', 'choose ')
             self.doc[i] = line
 
+    @staticmethod
+    def has_boolean_return_type(func_signature):
+        r"""
+        Determine whether the function func_signature has a boolean return type.
+
+        If so, it will be declared in Cython as `bint` rather than `int`.
+        """
+        if func_signature.count('(') != 1 or func_signature.count(')') != 1:
+            return False
+
+        j = func_signature.index('(')
+        func_name = func_signature[:j].strip().split()
+        if len(func_name) != 2:
+            return False
+
+        return_type = func_name[0]
+        if return_type != 'int':
+            return False
+
+        func_name = func_name[1]
+
+        return func_name.startswith('is_') or \
+               '_is_' in func_name or \
+               func_name.endswith('_eq') or \
+               func_name.endswith('_ne') or \
+               func_name.endswith('_lt') or \
+               func_name.endswith('_le') or \
+               func_name.endswith('_gt') or \
+               func_name.endswith('_ge') or \
+               '_contains_' in func_name or \
+               func_name.endswith('_contains') or \
+               '_equal_' in func_name or \
+               func_name.endswith('_equal') or \
+               func_name.endswith('_overlaps')
+
     def clean_signatures(self):
         if (self.state & self.FUNCTION_DECLARATION) or (self.state & self.MACRO_DECLARATION):
             for i, func_signature in enumerate(self.signatures):
@@ -86,6 +121,12 @@ class Extractor:
                 replacements = [(pattern.format(bad), pattern.format(good)) for pattern in [' {},', ' {})', '*{},', '*{})'] for bad, good in bad_arg_names]
                 for bad_form, good_form in replacements:
                     func_signature = func_signature.replace(bad_form, good_form)
+
+                if self.has_boolean_return_type(func_signature):
+                    func_signature = func_signature.strip()
+                    if not func_signature.startswith('int '):
+                        raise RuntimeError
+                    func_signature = 'b' + func_signature
 
                 self.signatures[i] = func_signature
 
@@ -125,7 +166,7 @@ class Extractor:
     def add_type(self):
         # TODO: we might want to support auto-generation of types
         return
- 
+
     def process_line(self):
         r"""
         Process one line of documentation.
