@@ -654,16 +654,6 @@ cdef extern from "flint_wrap.h":
     ctypedef nmod_discrete_log_pohlig_hellman_struct nmod_discrete_log_pohlig_hellman_t[1]
 
 
-    # flint/fq_nmod.h
-    ctypedef struct fq_nmod_ctx_struct:
-        nmod_poly_t modulus
-
-    ctypedef fq_nmod_ctx_struct fq_nmod_ctx_t[1]
-
-    ctypedef nmod_poly_struct fq_nmod_struct
-    ctypedef nmod_poly_t fq_nmod_t
-
-
     # flint/fq_types.h
     ctypedef fmpz_poly_t fq_t
     ctypedef fmpz_poly_struct fq_struct
