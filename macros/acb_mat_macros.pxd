@@ -1,5 +1,5 @@
 # Macros from acb_mat.h
-# See https://github.com/flintlib/flint/issues/152
+# See https://github.com/flintlib/flint/issues/1529
 
 from .types cimport *
 
